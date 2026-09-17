@@ -1,0 +1,23 @@
+{
+  "name": "garv-market-trends",
+  "version": "1.0.0",
+  "description": "GARV Market Movement Trends Dashboard — competitive units, market share, and movement vs. state trend, snapshotted month-to-month.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "seed": "node scripts/seed.mjs"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "recharts": "^2.13.3"
+  },
+  "devDependencies": {
+    "@netlify/blobs": "^8.1.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^5.4.11",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+  }
+}

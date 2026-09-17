@@ -1,0 +1,21 @@
+node_modules
+dist
+.netlify
+.DS_Store
+*.log
+
+# Source data drops — kept local only (contain sensitive financials).
+# The app reads these via the Upload panel / seed script; they never belong in git.
+*.xlsx
+*.xlsm
+*.csv
+~$*
+
+# Parsed snapshots (real competitor/sales numbers). Data lives in Netlify Blobs,
+# not in this public repo. Regenerate locally with `npm run seed`.
+/public/data/
+
+# Local machine settings
+.claude/settings.local.json
+.env
+.env.*
