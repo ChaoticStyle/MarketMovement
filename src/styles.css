@@ -82,6 +82,34 @@ tbody tr.total td{background:var(--ink2);font-weight:600;color:var(--t0);border-
 tbody tr.total td.grp{font-family:var(--font)}
 .col-div{border-left:1px solid var(--rule2)}
 .badge-new{font-family:var(--mono);font-size:9px;color:var(--blu);background:var(--b-bg);padding:1px 5px;border-radius:3px;margin-left:6px}
+.ytd-basis{display:block;font-family:var(--mono);font-size:9.5px;color:var(--gold);opacity:.8;letter-spacing:.3px;margin-top:2px;cursor:help}
+
+/* Expandable dealer-group -> rooftop rows */
+.grp-toggle{display:inline-flex;align-items:center;gap:7px;background:none;border:0;padding:0;margin:0;cursor:pointer;font-family:inherit;font-size:inherit;font-weight:inherit;color:inherit;letter-spacing:inherit;text-align:left}
+.grp-toggle:hover{color:var(--gold)}
+.grp-toggle .caret{display:inline-block;width:9px;font-size:9px;color:var(--t3);transition:color .12s}
+.grp-toggle:hover .caret{color:var(--gold)}
+.grp-count{font-family:var(--mono);font-size:9px;font-weight:500;color:var(--t3);background:var(--ink2);border:1px solid var(--rule2);padding:0 5px;border-radius:8px;line-height:15px}
+/* Single-rooftop groups have no caret — indent their name by the caret+gap width so all group names line up. */
+.grp-static{display:inline-block;margin-left:16px}
+/* Single-location groups: full store name on hover, with a faint dotted hint. */
+.grp-static.has-tip{text-decoration:underline dotted;text-decoration-color:var(--t3);text-underline-offset:3px;cursor:help}
+.grp-static.has-tip:hover{text-decoration-color:var(--gold);color:var(--gold)}
+tbody tr.dealer-sub td{background:var(--ink2);font-size:11px;color:var(--t2);border-bottom:1px solid var(--rule)}
+tbody tr.dealer-sub.ours td{background:var(--g-bg)}
+tbody tr.dealer-sub td.grp{padding-left:30px}
+.dealer-name{font-family:var(--font);font-size:11.5px;color:var(--t1)}
+
+/* Rich chart hover cards */
+.chart-tip{background:#101820;border:1px solid #253648;border-radius:8px;padding:9px 11px;min-width:172px;box-shadow:0 6px 22px rgba(0,0,0,.45)}
+.ct-name{font-family:var(--font);font-size:12px;font-weight:600;color:var(--t0);display:flex;align-items:center;gap:6px;margin-bottom:5px}
+.ct-tag{font-family:var(--mono);font-size:8.5px;letter-spacing:.6px;color:var(--gold);border:1px solid var(--gold);border-radius:3px;padding:0 4px;line-height:14px;opacity:.85}
+.ct-big{font-family:var(--disp);font-size:19px;line-height:1.05;color:var(--t0);margin-bottom:6px}
+.ct-big.pos{color:var(--grn)} .ct-big.neg{color:var(--red)}
+.ct-unit{font-family:var(--mono);font-size:10px;color:var(--t3)}
+.ct-row{display:flex;justify-content:space-between;gap:16px;font-family:var(--mono);font-size:10.5px;padding:1.5px 0;color:var(--t1)}
+.ct-row span:first-child{color:var(--t3)}
+.ct-note{margin-top:6px;padding-top:5px;border-top:1px solid #253648;font-family:var(--font);font-size:9.5px;color:var(--t3);line-height:1.45}
 
 /* Over/under final row */
 .ou-wrap{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-top:14px}

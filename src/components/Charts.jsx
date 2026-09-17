@@ -2,45 +2,90 @@ import React from 'react'
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, ReferenceLine,
 } from 'recharts'
+import { fmtInt, fmtPct } from '../lib/format.js'
 
-const GOLD = '#f5a623', GRN = '#22c55e', RED = '#ef4444', T3 = '#5e7892'
-const short = (n) => (n.length > 16 ? n.slice(0, 15) + '…' : n)
+const GOLD = '#f5a623', GRN = '#22c55e', RED = '#ef4444', BLU = '#3b82f6', T3 = '#5e7892'
+const short = (n) => (n.length > 22 ? n.slice(0, 21) + '…' : n)
 
-const tip = {
-  contentStyle: { background: '#101820', border: '1px solid #253648', borderRadius: 7, fontFamily: 'DM Mono, monospace', fontSize: 11, color: '#dde9f5' },
-  labelStyle: { color: '#a3b6cc' }, cursor: { fill: 'rgba(245,166,35,.06)' },
-}
+const tipCursor = { fill: 'rgba(245,166,35,.06)' }
 const axis = { tick: { fill: T3, fontSize: 10, fontFamily: 'DM Mono, monospace' }, axisLine: { stroke: '#253648' }, tickLine: false }
+// Many dealer groups -> vertical labels so they never overlap or truncate mid-word.
+const xAxis = {
+  tick: { fill: T3, fontSize: 9.5, fontFamily: 'DM Mono, monospace' },
+  axisLine: { stroke: '#253648' }, tickLine: false,
+  interval: 0, angle: -90, textAnchor: 'end', tickMargin: 6, height: 118,
+}
 
 export default function Charts({ table, year }) {
-  const unitData = table.rows.map((r) => ({ name: short(r.name), full: r.name, units: r.y2026, ours: r.isOurs }))
+  const unitData = table.rows.map((r) => ({
+    name: short(r.name), full: r.name, units: r.y2026, ours: r.isOurs,
+    share26: r.share.y2026, full2025: r.y2025, rooftops: (r.dealers || []).length,
+  }))
   const moveData = table.rows
     .filter((r) => r.move.y2526 != null)
-    .map((r) => ({ name: short(r.name), full: r.name, ppt: +(r.move.y2526 * 100).toFixed(2), ours: r.isOurs }))
+    .map((r) => ({
+      name: short(r.name), full: r.name, ppt: +(r.move.y2526 * 100).toFixed(2), ours: r.isOurs,
+      share25: r.share.y2025, share26: r.share.y2026,
+    }))
+
+  // Rich hover card for the units chart: what the bar is + the numbers behind it.
+  const UnitsTip = ({ active, payload }) => {
+    if (!active || !payload?.length) return null
+    const d = payload[0].payload
+    return (
+      <div className="chart-tip">
+        <div className="ct-name">{d.full}{d.ours && <span className="ct-tag">OURS</span>}</div>
+        <div className="ct-big">{fmtInt(d.units)}<span className="ct-unit"> units · YTD {year}</span></div>
+        <div className="ct-row"><span>Share of market</span><span>{fmtPct(d.share26)}</span></div>
+        <div className="ct-row"><span>Full-year {year - 1}</span><span>{fmtInt(d.full2025)}</span></div>
+        {d.rooftops > 1 && <div className="ct-row"><span>Rooftops</span><span>{d.rooftops}</span></div>}
+        <div className="ct-note">
+          Bar height = year-to-date {year} {d.ours ? 'new units (Used excluded)' : 'new-unit registrations'}.
+        </div>
+      </div>
+    )
+  }
+
+  // Rich hover card for the share-movement chart.
+  const MoveTip = ({ active, payload }) => {
+    if (!active || !payload?.length) return null
+    const d = payload[0].payload
+    const pos = d.ppt >= 0
+    return (
+      <div className="chart-tip">
+        <div className="ct-name">{d.full}{d.ours && <span className="ct-tag">OURS</span>}</div>
+        <div className={`ct-big ${pos ? 'pos' : 'neg'}`}>{pos ? '+' : ''}{d.ppt} pp<span className="ct-unit"> share move</span></div>
+        <div className="ct-row"><span>Share {String(year - 1).slice(2)} → {String(year).slice(2)}</span><span>{fmtPct(d.share25)} → {fmtPct(d.share26)}</span></div>
+        <div className="ct-note">
+          {pos ? 'Gained' : 'Lost'} {Math.abs(d.ppt)} points of market share vs. last year.
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="charts">
       <div className="chart-card">
         <div className="chart-t">{year} UNITS BY DEALER GROUP</div>
-        <ResponsiveContainer width="100%" height={230}>
+        <ResponsiveContainer width="100%" height={300}>
           <BarChart data={unitData} margin={{ top: 4, right: 8, left: -14, bottom: 4 }}>
-            <XAxis dataKey="name" {...axis} interval={0} angle={-25} textAnchor="end" height={54} />
+            <XAxis dataKey="name" {...xAxis} />
             <YAxis {...axis} />
-            <Tooltip {...tip} formatter={(v) => [v, 'Units']} labelFormatter={(_, p) => p?.[0]?.payload?.full || ''} />
+            <Tooltip content={<UnitsTip />} cursor={tipCursor} wrapperStyle={{ outline: 'none' }} />
             <Bar dataKey="units" radius={[3, 3, 0, 0]}>
-              {unitData.map((d, i) => <Cell key={i} fill={d.ours ? GOLD : '#3b82f6'} />)}
+              {unitData.map((d, i) => <Cell key={i} fill={d.ours ? GOLD : BLU} />)}
             </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>
       <div className="chart-card">
         <div className="chart-t">SHARE MOVEMENT {String(year - 1).slice(2)}→{String(year).slice(2)} (PPT)</div>
-        <ResponsiveContainer width="100%" height={230}>
+        <ResponsiveContainer width="100%" height={300}>
           <BarChart data={moveData} margin={{ top: 4, right: 8, left: -14, bottom: 4 }}>
-            <XAxis dataKey="name" {...axis} interval={0} angle={-25} textAnchor="end" height={54} />
+            <XAxis dataKey="name" {...xAxis} />
             <YAxis {...axis} />
             <ReferenceLine y={0} stroke="#253648" />
-            <Tooltip {...tip} formatter={(v) => [`${v > 0 ? '+' : ''}${v} pp`, 'Share move']} labelFormatter={(_, p) => p?.[0]?.payload?.full || ''} />
+            <Tooltip content={<MoveTip />} cursor={tipCursor} wrapperStyle={{ outline: 'none' }} />
             <Bar dataKey="ppt" radius={[3, 3, 0, 0]}>
               {moveData.map((d, i) => <Cell key={i} fill={d.ppt >= 0 ? GRN : RED} />)}
             </Bar>
