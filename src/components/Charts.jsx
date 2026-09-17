@@ -4,15 +4,16 @@ import {
 } from 'recharts'
 import { fmtInt, fmtPct } from '../lib/format.js'
 
-const GOLD = '#f5a623', GRN = '#22c55e', RED = '#ef4444', BLU = '#3b82f6', T3 = '#5e7892'
 const short = (n) => (n.length > 22 ? n.slice(0, 21) + '…' : n)
 
-const tipCursor = { fill: 'rgba(245,166,35,.06)' }
-const axis = { tick: { fill: T3, fontSize: 10, fontFamily: 'DM Mono, monospace' }, axisLine: { stroke: '#253648' }, tickLine: false }
+// Chart palette, matched to the instrument-cluster tokens in styles.css.
+const C = { ours: '#f5b544', comp: '#4d74ab', pos: '#3ecf8e', neg: '#f0616d', axis: '#6b8199', grid: '#22344a', cursor: 'rgba(245,181,68,.07)', mono: 'DM Mono, monospace' }
+const tipCursor = { fill: C.cursor }
+const axis = { tick: { fill: C.axis, fontSize: 10, fontFamily: C.mono }, axisLine: { stroke: C.grid }, tickLine: false }
 // Many dealer groups -> vertical labels so they never overlap or truncate mid-word.
 const xAxis = {
-  tick: { fill: T3, fontSize: 9.5, fontFamily: 'DM Mono, monospace' },
-  axisLine: { stroke: '#253648' }, tickLine: false,
+  tick: { fill: C.axis, fontSize: 9.5, fontFamily: C.mono },
+  axisLine: { stroke: C.grid }, tickLine: false,
   interval: 0, angle: -90, textAnchor: 'end', tickMargin: 6, height: 118,
 }
 
@@ -73,7 +74,7 @@ export default function Charts({ table, year }) {
             <YAxis {...axis} />
             <Tooltip content={<UnitsTip />} cursor={tipCursor} wrapperStyle={{ outline: 'none' }} />
             <Bar dataKey="units" radius={[3, 3, 0, 0]}>
-              {unitData.map((d, i) => <Cell key={i} fill={d.ours ? GOLD : BLU} />)}
+              {unitData.map((d, i) => <Cell key={i} fill={d.ours ? C.ours : C.comp} />)}
             </Bar>
           </BarChart>
         </ResponsiveContainer>
@@ -84,10 +85,10 @@ export default function Charts({ table, year }) {
           <BarChart data={moveData} margin={{ top: 4, right: 8, left: -14, bottom: 4 }}>
             <XAxis dataKey="name" {...xAxis} />
             <YAxis {...axis} />
-            <ReferenceLine y={0} stroke="#253648" />
+            <ReferenceLine y={0} stroke={C.grid} />
             <Tooltip content={<MoveTip />} cursor={tipCursor} wrapperStyle={{ outline: 'none' }} />
             <Bar dataKey="ppt" radius={[3, 3, 0, 0]}>
-              {moveData.map((d, i) => <Cell key={i} fill={d.ppt >= 0 ? GRN : RED} />)}
+              {moveData.map((d, i) => <Cell key={i} fill={d.ppt >= 0 ? C.pos : C.neg} />)}
             </Bar>
           </BarChart>
         </ResponsiveContainer>
