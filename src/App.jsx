@@ -8,6 +8,7 @@ import OverUnder from './components/OverUnder.jsx'
 import Charts from './components/Charts.jsx'
 import UploadPanel from './components/UploadPanel.jsx'
 import AdminPanel from './components/AdminPanel.jsx'
+import Hero from './components/Hero.jsx'
 
 export default function App() {
   const [periods, setPeriods] = useState([])
@@ -97,6 +98,7 @@ export default function App() {
 
       {!loading && snapshot && table && (
         <>
+          <Hero kpis={table.kpis} mom={mom} segLabel={segLabel} scope={scope} period={period} />
           <KpiRow kpis={table.kpis} mom={mom} segLabel={segLabel} />
 
           <div className="sec-h">
