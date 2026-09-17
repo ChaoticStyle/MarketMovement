@@ -50,31 +50,37 @@ export function buildTable(snapshot, seg, scope) {
   const stores = scopeStores(snapshot, scope)
   const groups = new Map() // name -> {y2024,y2025,y2026,isOurs,has2024}
 
-  const bump = (name, isOurs, y, units, has2024 = true) => {
-    if (!groups.has(name)) groups.set(name, { name, y2024: 0, y2025: 0, y2026: 0, isOurs, has2024 })
+  // Accumulate a group total and, under it, each rooftop (dealer) as a sub-row.
+  const bump = (name, dealer, isOurs, y, units, has2024 = true) => {
+    if (!groups.has(name)) groups.set(name, { name, y2024: 0, y2025: 0, y2026: 0, isOurs, has2024, dealers: new Map() })
     const g = groups.get(name)
     g[y] += units
     if (!has2024) g.has2024 = false
+    if (dealer != null) {
+      if (!g.dealers.has(dealer)) g.dealers.set(dealer, { name: dealer, y2024: 0, y2025: 0, y2026: 0, isOurs })
+      const d = g.dealers.get(dealer)
+      d[y] += units
+    }
   }
 
-  // Competitors from each market in scope.
+  // Competitors from each market in scope, kept per rooftop (dealer).
   for (const m of snapshot.markets) {
     if (!stores.includes(m.store)) continue
     for (const r of m.rows) {
       if (!inSeg(r.type, seg)) continue
-      bump(r.group, false, 'y2024', r.y2024.units)
-      bump(r.group, false, 'y2025', r.y2025.units)
-      bump(r.group, false, 'y2026', r.y2026.units)
+      bump(r.group, r.dealer, false, 'y2024', r.y2024.units)
+      bump(r.group, r.dealer, false, 'y2025', r.y2025.units)
+      bump(r.group, r.dealer, false, 'y2026', r.y2026.units)
     }
   }
   // Inject our store(s) as the anchor group, on the SAME basis as the market
-  // columns: full-year 2024/2025, YTD for the report year.
+  // columns: full-year 2024/2025, YTD for the report year. Each store is a rooftop.
   let our2024 = 0, ourYtd = 0, ourYtdPrior = 0
   for (const b of snapshot.our_stores) {
     if (!stores.includes(b.store)) continue
-    bump(ANCHOR, true, 'y2026', ourUnits(b, seg, 'ytd'))
-    bump(ANCHOR, true, 'y2025', ourUnits(b, seg, 'full_prior'))
-    bump(ANCHOR, true, 'y2024', ourUnits(b, seg, 'full_prior2'))
+    bump(ANCHOR, b.store, true, 'y2026', ourUnits(b, seg, 'ytd'))
+    bump(ANCHOR, b.store, true, 'y2025', ourUnits(b, seg, 'full_prior'))
+    bump(ANCHOR, b.store, true, 'y2024', ourUnits(b, seg, 'full_prior2'))
     our2024 += ourUnits(b, seg, 'full_prior2')
     ourYtd += ourUnits(b, seg, 'ytd')
     ourYtdPrior += ourUnits(b, seg, 'ytd_prior')
@@ -89,10 +95,28 @@ export function buildTable(snapshot, seg, scope) {
     const t = totals[y]
     return t > 0 ? g[y] / t : null
   }
+  // Per-year share for any {y2024,y2025,y2026} record against the market total.
+  // Our 2024 is suppressed the same way the group is when we have no 2024 actuals.
+  const shareRec = (rec, hasOur2024) => {
+    const one = (y) => {
+      if (rec.isOurs && y === 'y2024' && !hasOur2024) return null
+      const t = totals[y]
+      return t > 0 ? rec[y] / t : null
+    }
+    const s24 = one('y2024'), s25 = one('y2025'), s26 = one('y2026')
+    return {
+      share: { y2024: s24, y2025: s25, y2026: s26 },
+      move: { y2425: s24 != null && s25 != null ? s25 - s24 : null, y2526: s25 != null && s26 != null ? s26 - s25 : null },
+    }
+  }
   const rows = [...groups.values()].map((g) => {
     const s24 = shareOf(g, 'y2024'), s25 = shareOf(g, 'y2025'), s26 = shareOf(g, 'y2026')
+    const dealers = [...g.dealers.values()]
+      .map((d) => ({ ...d, ...shareRec(d, g.has2024) }))
+      .sort((a, b) => (b.y2026 - a.y2026) || (b.y2025 - a.y2025))
     return {
       ...g,
+      dealers,
       share: { y2024: s24, y2025: s25, y2026: s26 },
       move: { y2425: s24 != null && s25 != null ? s25 - s24 : null, y2526: s25 != null && s26 != null ? s26 - s25 : null },
       unitGrowth: g.y2025 > 0 ? (g.y2026 - g.y2025) / g.y2025 : null,
