@@ -26,7 +26,7 @@ export default function AdminPanel({ periods, onClose, onChanged }) {
     <div className="overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h2>Admin — clear data</h2>
-        <p>Deleting is permanent. Enter the admin password (set as <code>ADMIN_PASSWORD</code> in Netlify) to remove a month or wipe everything.</p>
+        <p>Deleting is permanent. Enter the admin password to remove a month or wipe everything.</p>
 
         <div className="ctl-group" style={{ marginBottom: 14 }}>
           <label className="ctl-label">Admin password</label>
