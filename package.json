@@ -16,8 +16,8 @@
   },
   "devDependencies": {
     "@netlify/blobs": "^8.1.0",
-    "@vitejs/plugin-react": "^4.3.4",
-    "vite": "^5.4.11",
+    "@vitejs/plugin-react": "^6.1.1",
+    "vite": "^8.3.0",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   }
 }
