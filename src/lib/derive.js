@@ -27,6 +27,17 @@ function ourUnits(rec, seg, which) {
   return motors + tow
 }
 
+// Our units for a block, split by unit type using the same labels the market
+// files use, so our breakdown and competitors' line up. Only in-segment types.
+function ourTypeCounts(rec, seg, which) {
+  const b = rec[which]
+  if (!b) return {}
+  const out = {}
+  if (seg !== 'tow') { if (b.ClassA) out['Class A'] = b.ClassA; if (b.ClassB) out['Class B'] = b.ClassB; if (b.ClassC) out['Class C'] = b.ClassC }
+  if (seg !== 'motors') { if (b.TT) out['Travel Trailer'] = b.TT; if (b.FW) out['Fifth Wheel'] = b.FW }
+  return out
+}
+
 // The list of stores a scope covers. scope === 'ALL' -> every market.
 export function scopeStores(snapshot, scope) {
   if (scope === 'ALL') return snapshot.markets.map((m) => m.store)
@@ -50,28 +61,61 @@ export function buildTable(snapshot, seg, scope) {
   const stores = scopeStores(snapshot, scope)
   const groups = new Map() // name -> {y2024,y2025,y2026,isOurs,has2024}
 
+  const emptyTypes = () => ({ y2024: {}, y2025: {}, y2026: {} })
   // Accumulate a group total and, under it, each rooftop (dealer) as a sub-row.
   const bump = (name, dealer, isOurs, y, units, has2024 = true) => {
-    if (!groups.has(name)) groups.set(name, { name, y2024: 0, y2025: 0, y2026: 0, isOurs, has2024, dealers: new Map() })
+    if (!groups.has(name)) groups.set(name, { name, y2024: 0, y2025: 0, y2026: 0, isOurs, has2024, dealers: new Map(), types: emptyTypes() })
     const g = groups.get(name)
     g[y] += units
     if (!has2024) g.has2024 = false
     if (dealer != null) {
-      if (!g.dealers.has(dealer)) g.dealers.set(dealer, { name: dealer, y2024: 0, y2025: 0, y2026: 0, isOurs })
+      if (!g.dealers.has(dealer)) g.dealers.set(dealer, { name: dealer, y2024: 0, y2025: 0, y2026: 0, isOurs, types: emptyTypes() })
       const d = g.dealers.get(dealer)
       d[y] += units
     }
   }
+  // Add a {typeLabel: count} map into the group's (and rooftop's) type breakdown
+  // for one year — the third drill-down level behind each units number.
+  const addTypes = (name, dealer, y, counts) => {
+    const g = groups.get(name)
+    for (const [label, n] of Object.entries(counts)) g.types[y][label] = (g.types[y][label] || 0) + n
+    if (dealer != null && g.dealers.has(dealer)) {
+      const d = g.dealers.get(dealer)
+      for (const [label, n] of Object.entries(counts)) d.types[y][label] = (d.types[y][label] || 0) + n
+    }
+  }
 
   // Competitors from each market in scope, kept per rooftop (dealer).
+  // A competitor rooftop can sit inside more than one of our stores' trade areas
+  // and therefore appear in several Market Comparison files. Those files count
+  // the SAME registrations (overlapping radii), so summing them double-counts in
+  // a multi-market (Company) rollup. Collapse each rooftop to a single instance:
+  // the market where it is largest, i.e. the fullest trade-area view. In a
+  // single-store scope each rooftop occurs once, so this is a no-op there.
+  const roof = new Map() // "group||dealer" -> Map(store -> {group, dealer, y2024, y2025, y2026})
   for (const m of snapshot.markets) {
     if (!stores.includes(m.store)) continue
     for (const r of m.rows) {
       if (!inSeg(r.type, seg)) continue
-      bump(r.group, r.dealer, false, 'y2024', r.y2024.units)
-      bump(r.group, r.dealer, false, 'y2025', r.y2025.units)
-      bump(r.group, r.dealer, false, 'y2026', r.y2026.units)
+      const key = `${r.group}||${r.dealer ?? ''}`
+      if (!roof.has(key)) roof.set(key, new Map())
+      const byStore = roof.get(key)
+      if (!byStore.has(m.store)) byStore.set(m.store, { group: r.group, dealer: r.dealer, y2024: 0, y2025: 0, y2026: 0, types: emptyTypes() })
+      const a = byStore.get(m.store)
+      a.y2024 += r.y2024.units; a.y2025 += r.y2025.units; a.y2026 += r.y2026.units
+      a.types.y2024[r.type] = (a.types.y2024[r.type] || 0) + r.y2024.units
+      a.types.y2025[r.type] = (a.types.y2025[r.type] || 0) + r.y2025.units
+      a.types.y2026[r.type] = (a.types.y2026[r.type] || 0) + r.y2026.units
     }
+  }
+  for (const byStore of roof.values()) {
+    const best = [...byStore.values()].sort((a, b) => (b.y2026 - a.y2026) || (b.y2025 - a.y2025) || (b.y2024 - a.y2024))[0]
+    bump(best.group, best.dealer, false, 'y2024', best.y2024)
+    bump(best.group, best.dealer, false, 'y2025', best.y2025)
+    bump(best.group, best.dealer, false, 'y2026', best.y2026)
+    addTypes(best.group, best.dealer, 'y2024', best.types.y2024)
+    addTypes(best.group, best.dealer, 'y2025', best.types.y2025)
+    addTypes(best.group, best.dealer, 'y2026', best.types.y2026)
   }
   // Inject our store(s) as the anchor group, on the SAME basis as the market
   // columns: full-year 2024/2025, YTD for the report year. Each store is a rooftop.
@@ -81,6 +125,9 @@ export function buildTable(snapshot, seg, scope) {
     bump(ANCHOR, b.store, true, 'y2026', ourUnits(b, seg, 'ytd'))
     bump(ANCHOR, b.store, true, 'y2025', ourUnits(b, seg, 'full_prior'))
     bump(ANCHOR, b.store, true, 'y2024', ourUnits(b, seg, 'full_prior2'))
+    addTypes(ANCHOR, b.store, 'y2026', ourTypeCounts(b, seg, 'ytd'))
+    addTypes(ANCHOR, b.store, 'y2025', ourTypeCounts(b, seg, 'full_prior'))
+    addTypes(ANCHOR, b.store, 'y2024', ourTypeCounts(b, seg, 'full_prior2'))
     our2024 += ourUnits(b, seg, 'full_prior2')
     ourYtd += ourUnits(b, seg, 'ytd')
     ourYtdPrior += ourUnits(b, seg, 'ytd_prior')
