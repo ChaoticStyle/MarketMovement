@@ -13,6 +13,13 @@ const store = () => getStore('market-snapshots')
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' } })
 
+// View gate: if VIEW_PASSWORD is set, reads (and the in-browser upload
+// POST) require a matching x-view-password header. Unset => open.
+function viewBlocked(req) {
+  const vp = process.env.VIEW_PASSWORD
+  return vp && (req.headers.get('x-view-password') || '') !== vp
+}
+
 function checkAdmin(req) {
   const expected = process.env.ADMIN_PASSWORD
   if (!expected) return { ok: false, code: 503, msg: 'Admin password is not configured on the server (set ADMIN_PASSWORD in Netlify).' }
@@ -31,6 +38,7 @@ export default async (req) => {
   try {
     const s = store()
     if (req.method === 'GET') {
+      if (viewBlocked(req)) return json({ error: 'Unauthorized' }, 401)
       if (period) {
         const snap = await s.get(`snapshot/${period}`, { type: 'json' })
         return snap ? json(snap) : json({ error: 'not found' }, 404)
@@ -39,6 +47,9 @@ export default async (req) => {
       return json({ periods: (idx.periods || []).slice().sort() })
     }
     if (req.method === 'POST') {
+      // Was unauthenticated — anyone could inject/overwrite a snapshot.
+      // Now requires the view password (the in-browser admin upload sends it).
+      if (viewBlocked(req)) return json({ error: 'Unauthorized' }, 401)
       const snap = await req.json()
       if (!snap?.period) return json({ error: 'missing period' }, 400)
       await s.setJSON(`snapshot/${snap.period}`, snap)

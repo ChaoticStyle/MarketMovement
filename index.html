@@ -7,8 +7,102 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<style>
+  /* ── VIEW GATE — page-load password wall, rendered before React mounts.
+     Self-contained (hardcoded colors) since the app's CSS vars load with
+     the React bundle. ── */
+  @keyframes vgRise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  #view-gate{display:none;position:fixed;inset:0;z-index:99999;background:#0a1019;align-items:center;justify-content:center;padding:20px;font-family:'DM Sans',system-ui,sans-serif}
+  #view-gate.show{display:flex}
+  #view-gate .vg-card{width:100%;max-width:380px;background:#141f2e;border:1px solid #294056;border-radius:13px;padding:32px 26px;text-align:center;animation:vgRise .18s both}
+  #view-gate .vg-gem{width:30px;height:30px;margin:0 auto 14px;background:#f5b544;clip-path:polygon(50% 0%,100% 50%,50% 100%,0% 50%)}
+  #view-gate .vg-title{font-family:'Bebas Neue',cursive;font-size:24px;letter-spacing:1px;margin:0 0 6px;color:#e7f0fa}
+  #view-gate .vg-title em{color:#f5b544;font-style:normal}
+  #view-gate .vg-sub{font-size:12px;color:#7d95af;margin:0 0 18px;line-height:1.5}
+  #view-gate form{display:flex;flex-direction:column;gap:10px}
+  #view-gate input{padding:11px 13px;background:#1a2a3c;border:1px solid #294056;border-radius:8px;color:#e7f0fa;font-family:inherit;font-size:14px;text-align:center}
+  #view-gate input:focus{outline:none;border-color:#f5b544}
+  #view-gate button{padding:11px 13px;background:#f5b544;border:1px solid #f5b544;border-radius:8px;color:#0a1019;font-weight:700;font-family:inherit;font-size:13px;cursor:pointer}
+  #view-gate .vg-error{color:#f0616d;font-size:12px;margin-top:10px;min-height:15px}
+</style>
 </head>
 <body>
+<!-- VIEW GATE — page-load password wall (separate from the admin/delete lock) -->
+<div id="view-gate">
+  <div class="vg-card">
+    <div class="vg-gem"></div>
+    <div class="vg-title">GARV <em>Market Trends</em></div>
+    <p class="vg-sub">This dashboard is private. Enter the access password to view.</p>
+    <form id="view-gate-form" autocomplete="off">
+      <input type="password" id="view-gate-input" placeholder="Access password" autocomplete="off" autofocus>
+      <button type="submit">Unlock</button>
+    </form>
+    <div id="view-gate-error" class="vg-error"></div>
+  </div>
+</div>
+
+<!-- View-gate boot: runs BEFORE the React module below, so the fetch
+     interceptor is installed before any component fetches data. -->
+<script>
+(function(){
+  var _f = window.fetch.bind(window);
+  window.fetch = function(input, init){
+    var isRead = false, gated = false;
+    try{
+      var url = typeof input === 'string' ? input : (input && input.url) || '';
+      var method = ((init && init.method) || (input && input.method) || 'GET').toUpperCase();
+      var isSnap = url.indexOf('/api/snapshots') !== -1;
+      gated = isSnap && (method === 'GET' || method === 'POST'); // reads + in-browser upload
+      isRead = isSnap && method === 'GET';
+      if(gated){
+        var pw = sessionStorage.getItem('viewPassword');
+        if(pw){ init = Object.assign({}, init); var h = new Headers((init && init.headers) || {}); h.set('X-View-Password', pw); init.headers = h; }
+      }
+    }catch(e){}
+    return _f(input, init).then(function(res){
+      if(isRead && res && res.status === 401){ relock(); }
+      return res;
+    });
+  };
+  var relocking = false;
+  function relock(){
+    if(relocking) return; relocking = true;
+    try{ sessionStorage.removeItem('viewUnlocked'); sessionStorage.removeItem('viewPassword'); }catch(e){}
+    showGate();
+  }
+  window.relockView = relock;
+  function showGate(){
+    var gate = document.getElementById('view-gate');
+    var input = document.getElementById('view-gate-input');
+    var err = document.getElementById('view-gate-error');
+    var form = document.getElementById('view-gate-form');
+    gate.classList.add('show');
+    setTimeout(function(){ input.focus(); }, 50);
+    form.onsubmit = function(e){
+      e.preventDefault(); err.textContent = '';
+      var btn = form.querySelector('button'); btn.disabled = true;
+      fetch('/api/view-auth?password=' + encodeURIComponent(input.value)).then(function(r){ return r.json(); }).then(function(j){
+        if(j && j.ok){
+          sessionStorage.setItem('viewUnlocked','1');
+          sessionStorage.setItem('viewPassword', input.value);
+          location.reload(); // let React refetch with the header
+        } else { err.textContent = 'Incorrect password.'; input.select(); btn.disabled = false; }
+      }).catch(function(){ err.textContent = 'Could not verify — try again.'; btn.disabled = false; });
+    };
+  }
+  // Boot: if already unlocked, let React run (interceptor adds the header).
+  // Otherwise cover the page immediately and probe — an unset VIEW_PASSWORD
+  // unlocks automatically; a set one shows the prompt.
+  if(sessionStorage.getItem('viewUnlocked') !== '1'){
+    document.getElementById('view-gate').classList.add('show');
+    fetch('/api/view-auth?password=').then(function(r){ return r.json(); }).then(function(j){
+      if(j && j.ok){ sessionStorage.setItem('viewUnlocked','1'); sessionStorage.setItem('viewPassword',''); document.getElementById('view-gate').classList.remove('show'); }
+      else { showGate(); }
+    }).catch(function(){ showGate(); });
+  }
+})();
+</script>
+
 <div id="root"></div>
 <script type="module" src="/src/main.jsx"></script>
 </body>

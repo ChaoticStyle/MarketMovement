@@ -17,12 +17,17 @@
   to     = "/.netlify/functions/snapshots"
   status = 200
 
+[[redirects]]
+  from   = "/api/view-auth"
+  to     = "/.netlify/functions/view-auth"
+  status = 200
+
 [[headers]]
   for = "/api/*"
   [headers.values]
     Access-Control-Allow-Origin  = "*"
     Access-Control-Allow-Methods = "GET, POST, DELETE, OPTIONS"
-    Access-Control-Allow-Headers = "Content-Type"
+    Access-Control-Allow-Headers = "Content-Type, X-Admin-Password, X-View-Password"
 
 # ─── SPA fallback ────────────────────────────────────────────
 [[redirects]]
